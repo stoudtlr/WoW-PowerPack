@@ -23,7 +23,11 @@ $AZCoreDataURL = "https://api.github.com/repos/wowgaming/client-data/releases/la
 # This is only used if the "Create Repack" option is used
 # You MUST do this if you plan to play on your built server.
 # Otherwise all characters and progress are wiped next time you build a server
-$PersonalServerFolder = "C:\WoWServer\MyRepack\"
+$RepackFolder = "C:\WoWRepack\MyRepack\"
+
+#Base Repo locations
+$AzerothCoreRepo = "https://github.com/azerothcore/azerothcore-wotlk.git"
+$PlayerbotsRepo = "https://github.com/liyunfan1223/azerothcore-wotlk.git"
 
 ###############################################
 ##      DO NOT EDIT ANYTHING BELOW THIS      ##
@@ -94,6 +98,10 @@ do {
             $BoostURL = "https://sourceforge.net/projects/boost/files/boost-binaries/1.81.0/boost_1_81_0-msvc-14.3-64.exe/download"
             $BoostFileName = $BoostURL.Split("/")[-2]
             $BoostInstallFile = (Join-Path $DownloadFolder $BoostFileName)
+            $NotepadURL = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6.2/npp.8.6.2.Installer.x64.exe"
+            $NotepadFileName = $NotepadURL.Split("/")[-1]
+            $NotepadInstallFile = (Join-Path $DownloadFolder $NotepadFileName)
+
 
             # Pre-requisite checks section
             Write-Information -MessageData "Beginning pre-requisite checks and`ninstalling any missing but required software`n`n" -InformationAction Continue
@@ -112,6 +120,33 @@ do {
                 Expand-Archive -Path $HeidiZipFile -DestinationPath (Join-Path $DownloadFolder "HeidiSQL")
                 Start-Sleep -Seconds 2
             }
+            # check for Notepad++
+            if (!(Test-Path -Path "C:\Program Files\Notepad++\notepad++.exe")) {
+                Write-Information -MessageData "Notepad++ not found. Downloading and installing now" -InformationAction Continue
+                if (!(Test-Path -Path "$NotepadInstallFile")) {
+                    Try {
+                        $Response = Invoke-WebRequest -Uri $NotepadURL -OutFile $NotepadInstallFile
+                    } Catch {
+                        $fail = $_.Exception.Response.StatusCode.Value__
+                        Write-Information -Message "Failed to download $NotepadFileName with error message: $fail" -InformationAction Continue
+                        Break
+                    }
+                } else {
+                    Write-Information -MessageData "$NotepadFileName install file previously downloaded. Continuing..."
+                }
+                Write-Information -MessageData "Download finished. Now installing" -InformationAction Continue
+                $NotepadArguments = "/S"
+                Try {
+                    Start-Process -FilePath $NotepadInstallFile -ArgumentList $NotepadArguments -Wait
+                } Catch {
+                    Write-Error -Message "$NotepadFileName 64bit install failed" -ErrorAction Stop
+                }
+                Write-Information -MessageData "$NotepadFileName 64bit install finished" -InformationAction Continue
+                $RestartRequired = $true
+            } else {
+                Write-Information -MessageData "$NotepadFileName already installed. Continuing to next step." -InformationAction Continue
+            }
+
             # check for Git 64bit install
             if (!(Test-Path -Path "C:\Program Files\Git\git-cmd.exe")) {
                 Write-Information -MessageData "Git 64bit not found.  Downloading now" -InformationAction Continue
@@ -316,7 +351,7 @@ do {
         }
         #Clone/Clean Base Git Repo
         '2' {
-            $AzerothCoreRepo = "https://github.com/azerothcore/azerothcore-wotlk.git"
+            $BaseRepo = $AzerothCoreRepo
             if (!(Test-Path -Path $BaseLocation)) {
                 Write-Information -MessageData "Creating Folder:`n$BaseLocation" -InformationAction Continue
                 Try {
@@ -329,7 +364,7 @@ do {
             if (!(Test-Path $gitpath)) {
                 Write-Information -MessageData "Cloning AzerothCore Git Repo" -InformationAction Continue
                 Try {
-                    git clone $AzerothCoreRepo $BaseLocation --branch=Playerbot
+                    git clone $BaseRepo $BaseLocation --branch=Playerbot
                     if (-not $?) {
                         throw "git error! failed to clone AzerothCore!"
                     }
@@ -861,8 +896,8 @@ do {
         #Create Repack
         '7' {
             $NewRepack = $null
-            if (Test-Path -path (Join-Path $PersonalServerFolder "Server\worldserver.exe")) {
-                Write-Host "Existing Server Repack found at:`n$PersonalServerFolder`n`n"
+            if (Test-Path -path (Join-Path $RepackFolder "Server\worldserver.exe")) {
+                Write-Host "Existing Server Repack found at:`n$RepackFolder`n`n"
                 Write-Host "What would you like to do?"
                 Write-Host "1. Update repack (Data folder, Auth and Character databases, and configs saved)"
                 Write-Host "2. New repack (delete existing files and create new)"
@@ -873,7 +908,7 @@ do {
                 } until (($RepackChoice -eq "1") -or ($RepackChoice -eq "2") -or ($RepackChoice -eq "Q"))
 
                 if ($RepackChoice -eq "1") {
-                    Get-ChildItem -path (Join-Path $BuildFolder "bin\Release") -Exclude "Data", "database", "configs" | Copy-Item -Destination (Join-Path $PersonalServerFolder "Server") -Force
+                    Get-ChildItem -path (Join-Path $BuildFolder "bin\Release") -Exclude "Data", "database", "configs" | Copy-Item -Destination (Join-Path $RepackFolder "Server") -Force
 
                     $BuildModuleConfigs = Get-ChildItem -Path (Join-Path $BaseLocation "modules") -Recurse | Where-Object {$_.Name -like "*.conf.dist"}
                     foreach ($BuildModuleConfig in $BuildModuleConfigs) {
@@ -881,16 +916,16 @@ do {
                         $ConfigFullName = $BuildModuleConfig.FullName
                         $Confile = $BuildModuleConfig -replace ".{5}$"
 
-                        if (!(Test-Path -Path (Join-Path $PersonalServerFolder "Server\configs\modules\$ConfigName"))) {
-                            Copy-Item -Path $ConfigFullName -Destination (Join-Path $PersonalServerFolder "Server\configs\modules")
-                            Copy-Item -Path $ConfigFullName -Destination (Join-Path $PersonalServerFolder "Server\configs\modules\$Confile")
+                        if (!(Test-Path -Path (Join-Path $RepackFolder "Server\configs\modules\$ConfigName"))) {
+                            Copy-Item -Path $ConfigFullName -Destination (Join-Path $RepackFolder "Server\configs\modules")
+                            Copy-Item -Path $ConfigFullName -Destination (Join-Path $RepackFolder "Server\configs\modules\$Confile")
                         }
                     }
 
                 }
                 if ($RepackChoice -eq "2") {
                     Write-Information -MessageData "Deleting existing files" -InformationAction Continue
-                    Remove-Item -path $PersonalServerFolder -Recurse -Force
+                    Remove-Item -path $RepackFolder -Recurse -Force
                     $NewRepack = $true
                 }
                 if ($RepackChoice -eq "Q") {
@@ -900,17 +935,17 @@ do {
                 $NewRepack = $true
             }
             if ($NewRepack -eq $true) {
-                Write-Information -MessageData "Creating personal server at:`n$PersonalServerFolder" -InformationAction Continue
-                if (!(Test-path -path $PersonalServerFolder)) {
+                Write-Information -MessageData "Creating personal server at:`n$RepackFolder" -InformationAction Continue
+                if (!(Test-path -path $RepackFolder)) {
                     Try {
-                        New-Item -Path $PersonalServerFolder -ItemType Directory
+                        New-Item -Path $RepackFolder -ItemType Directory
                     } Catch {
                         Write-Error -Message "Unable to create folder. Ensure valid path was used and retry" -ErrorAction Stop
                     }
                 }
-                Copy-Item -path (Join-Path $BuildFolder "bin\Release") -Destination $PersonalServerFolder -Recurse
-                Rename-Item -Path (Join-Path $PersonalServerFolder "Release") -NewName "Server"
-                New-Item -Path (Join-Path $PersonalServerFolder "Tools") -ItemType Directory
+                Copy-Item -path (Join-Path $BuildFolder "bin\Release") -Destination $RepackFolder -Recurse
+                Rename-Item -Path (Join-Path $RepackFolder "Release") -NewName "Server"
+                New-Item -Path (Join-Path $RepackFolder "Tools") -ItemType Directory
                 Start-Sleep -Seconds 3
                 Write-Information -MessageData "Copying HeidiSQL to repack folder" -InformationAction Continue
                 $HeidiURL = "https://www.heidisql.com/downloads/releases/HeidiSQL_10.3_64_Portable.zip"
@@ -931,11 +966,11 @@ do {
                     Start-Sleep -Seconds 2
                 }
                 Try {
-                    Copy-Item -Path (Join-Path $DownloadFolder "HeidiSQL") -Destination (Join-Path $PersonalServerFolder "Tools") -Recurse
+                    Copy-Item -Path (Join-Path $DownloadFolder "HeidiSQL") -Destination (Join-Path $RepackFolder "Tools") -Recurse
                 } Catch {
-                    Write-Information -MessageData "Failed to copy HeidiSQL.  Try to manually copy from:`n$DownloadFolder\HeidiSQL`n To folder:`n$PersonalServerFolder\Tools"
+                    Write-Information -MessageData "Failed to copy HeidiSQL.  Try to manually copy from:`n$DownloadFolder\HeidiSQL`n To folder:`n$RepackFolder\Tools"
                 }
-                $StartServerbat = (Join-Path $PersonalServerFolder "Start_WoW_Server.bat")
+                $StartServerbat = (Join-Path $RepackFolder "Start_WoW_Server.bat")
                 New-Item -Path $StartServerbat -ItemType File -Force
                 Add-Content -Path $StartServerbat -Value "@echo off
                 cd .\Server
@@ -945,7 +980,7 @@ do {
                 timeout /T 3
                 3_start_worldserver.bat"
 
-                Write-Information -MessageData "Finished creating repack/personal server`nFiles can be found here:`n$PersonalServerFolder" -InformationAction Continue
+                Write-Information -MessageData "Finished creating repack/personal server`nFiles can be found here:`n$RepackFolder" -InformationAction Continue
                 Write-Information -MessageData "You can start your server by double-clicking the filed named:`nStart_WoW_Server.bat" -InformationAction Continue
                 Write-Information -MessageData "Entire folder can be zipped and shared as well" -InformationAction Continue
             }
