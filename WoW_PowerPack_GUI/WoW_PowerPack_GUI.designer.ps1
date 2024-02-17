@@ -155,6 +155,7 @@ $WoW_PowerPack_GUI.Controls.Add($button_modules)
 $WoW_PowerPack_GUI.Controls.Add($button_clone)
 $WoW_PowerPack_GUI.Controls.Add($button_install)
 $WoW_PowerPack_GUI.Icon = ([System.Drawing.Icon]$resources.'$this.Icon')
+$WoW_PowerPack_GUI.MaximizeBox = $false
 $WoW_PowerPack_GUI.MinimumSize = (New-Object -TypeName System.Drawing.Size -ArgumentList @([System.Int32]1000,[System.Int32]700))
 $WoW_PowerPack_GUI.Name = [System.String]'WoW_PowerPack_GUI'
 $WoW_PowerPack_GUI.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
