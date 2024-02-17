@@ -46,6 +46,14 @@ Function Show-Menu {
     Write-Host "Q: Quit"
 }
 
+Function Show-BaseMenu {
+    Write-Host "`n`n`n=====Choose Azerothcore version======"
+    Write-Host "1: Plain\Vanilla by Azerothcore team"
+    Write-Host "2: Playerbots by LiYungFan1223/ZhengPeiRu21/IKE3"
+    Write-Host "3: NPCBots by Trickerer"
+    Write-Host "4: Back to Main Menu"
+}
+
 Function Import-SQLscripts {
     param (
         [Parameter(Mandatory = $true,Position = 0)]
@@ -351,74 +359,75 @@ do {
         }
         #Clone/Clean Base Git Repo
         '2' {
-            $BaseRepo = $AzerothCoreRepo
-            if (!(Test-Path -Path $BaseLocation)) {
-                Write-Information -MessageData "Creating Folder:`n$BaseLocation" -InformationAction Continue
-                Try {
-                New-Item -Path $BaseLocation -ItemType Directory
-                } Catch {
-                    Write-Error -Message "Unable to create folder. Ensure valid path was used and retry" -ErrorAction Stop
-                }
-            }
-			$gitpath = Join-Path $BaseLocation "\\.git\HEAD"
-            if (!(Test-Path $gitpath)) {
-                Write-Information -MessageData "Cloning AzerothCore Git Repo" -InformationAction Continue
-                Try {
-                    git clone $BaseRepo $BaseLocation --branch=Playerbot
-                    if (-not $?) {
-                        throw "git error! failed to clone AzerothCore!"
-                    }
-                } Catch {
-                    throw
-                }
-                Write-Information -MessageData "Clone successfull!" -InformationAction Continue
-            } else {
-                Write-Information -MessageData "AzerothCore already exists`nWill clean and update repo now" -InformationAction Continue
-                if (Test-Path (Join-Path $BaseLocation "modules")) {
-                    Remove-Item (Join-Path $BaseLocation "modules") -Recurse -Force
-                }
-                if (Test-Path 	(Join-Path $BaseLocation "data\sql\updates")) {
-                    Remove-Item (Join-Path $BaseLocation "data\sql\updates") -Recurse -Force
-                }
-                Set-Location $BaseLocation
-                
-                Try {
-                    git reset --hard
-                    if (-not $?) {
-                        throw "git error! failed to reset AzerothCore!"
-                    }
-                } Catch {
-                    throw
-                }
-                Try {
-                    git checkout master
-                    if (-not $?) {
-                        throw "git error! failed to checkout master!"
-                    }
-                } Catch {
-                    throw
-                }
+            do {
+                Show-BaseMenu
+                $BaseSelection = Read-Host "`nEnter choice #"
+            }until (($BaseSelection -eq "1") -or ($BaseSelection -eq "2") -or ($BaseSelection -eq "3") -or ($BaseSelection -eq "4"))
 
-                Try {
-                    git clean -fd
-                    if (-not $?) {
-                        throw "git error! failed to clean AzerothCore!"
+                $BaseRepo = $AzerothCoreRepo
+                if (!(Test-Path -Path $BaseLocation)) {
+                    Write-Information -MessageData "Creating Folder:`n$BaseLocation" -InformationAction Continue
+                    Try {
+                    New-Item -Path $BaseLocation -ItemType Directory
+                    } Catch {
+                        Write-Error -Message "Unable to create folder. Ensure valid path was used and retry" -ErrorAction Stop
                     }
-                } Catch {
-                    throw
                 }
-
-                Try {
-                    git pull
-                    if (-not $?) {
-                        throw "git error! failed to update AzerothCore!"
+                $gitpath = Join-Path $BaseLocation "\\.git\HEAD"
+                if (!(Test-Path $gitpath)) {
+                    Write-Information -MessageData "Cloning AzerothCore Git Repo" -InformationAction Continue
+                    Try {
+                        git clone $BaseRepo $BaseLocation --branch=Playerbot
+                        if (-not $?) {
+                            throw "git error! failed to clone AzerothCore!"
+                        }
+                    } Catch {
+                        throw
                     }
-                } Catch {
-                    throw
+                    Write-Information -MessageData "Clone successfull!" -InformationAction Continue
+                } else {
+                    Write-Information -MessageData "AzerothCore already exists`nWill clean and update repo now" -InformationAction Continue
+                    if (Test-Path (Join-Path $BaseLocation "modules")) {
+                        Remove-Item (Join-Path $BaseLocation "modules") -Recurse -Force
+                    }
+                    if (Test-Path 	(Join-Path $BaseLocation "data\sql\updates")) {
+                        Remove-Item (Join-Path $BaseLocation "data\sql\updates") -Recurse -Force
+                    }
+                    Set-Location $BaseLocation
+                    Try {
+                        git reset --hard
+                        if (-not $?) {
+                            throw "git error! failed to reset AzerothCore!"
+                        }
+                    } Catch {
+                        throw
+                    }
+                    Try {
+                        git checkout master
+                        if (-not $?) {
+                            throw "git error! failed to checkout master!"
+                        }
+                    } Catch {
+                        throw
+                    }
+                    Try {
+                        git clean -fd
+                        if (-not $?) {
+                            throw "git error! failed to clean AzerothCore!"
+                        }
+                    } Catch {
+                        throw
+                    }
+                    Try {
+                        git pull
+                        if (-not $?) {
+                            throw "git error! failed to update AzerothCore!"
+                        }
+                    } Catch {
+                        throw
+                    }
                 }
-
-            }
-            Write-Information -MessageData "AzerothCore cloned and/or cleaned.  You may now build server or download PR to test" -InformationAction Continue
+                Write-Information -MessageData "AzerothCore cloned and/or cleaned.  You may now build server or download PR to test" -InformationAction Continue
         }
         #Add custom modules
         '3' {
